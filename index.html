@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZYRUU ALL-IN-ONE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f0f13; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .premium-card { background: linear-gradient(145deg, #1a1a24, #12121a); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.8); border: 1px solid #2d2d3d; }
+        .neon-btn { background: #8b5cf6; transition: all 0.3s; }
+        .neon-btn:hover { background: #7c3aed; }
+        .danger-btn { background: #ef4444; }
+        .danger-btn:hover { background: #dc2626; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 py-10">
+
+    <div id="loginScreen" class="premium-card rounded-2xl p-8 w-full max-w-md">
+        <h1 class="text-2xl font-bold text-center mb-6 text-purple-400">ZYRUU SECURE LOGIN</h1>
+        <input type="password" id="masterPassword" class="w-full bg-[#0f0f13] border border-gray-700 rounded-lg p-4 text-sm mb-4" placeholder="Enter Master Password">
+        <button onclick="login()" class="neon-btn w-full text-white font-bold py-3 px-4 rounded-lg">Unlock</button>
+        <p id="loginError" class="text-red-500 text-center mt-4 hidden">Incorrect Password</p>
+    </div>
+
+    <div id="toolScreen" class="premium-card rounded-2xl p-8 w-full max-w-4xl hidden">
+        <h1 class="text-3xl font-bold text-center mb-6 bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">ZYRUU DASHBOARD</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- WARM-UP ENGINE -->
+            <div class="bg-[#0f0f13] p-4 rounded-lg border border-gray-700">
+                <h2 class="text-xl font-bold text-blue-400 mb-4">1. Warm-Up Engine</h2>
+                <p class="text-xs text-gray-400 mb-2">Make accounts look human to trigger offers.</p>
+                <textarea id="warmupTokens" rows="3" class="w-full bg-[#1a1a24] border border-gray-700 rounded-lg p-2 text-xs font-mono mb-2" placeholder="Paste tokens here..."></textarea>
+                <input id="voiceId" type="text" class="w-full bg-[#1a1a24] border border-gray-700 rounded-lg p-2 text-xs mb-2" placeholder="Voice Channel ID">
+                <input id="textId" type="text" class="w-full bg-[#1a1a24] border border-gray-700 rounded-lg p-2 text-xs mb-2" placeholder="Text Channel ID">
+                <div class="flex gap-2">
+                    <button onclick="startWarmup()" class="neon-btn w-full text-white text-sm font-bold py-2 rounded-lg">Start Bots</button>
+                    <button onclick="stopWarmup()" class="danger-btn w-full text-white text-sm font-bold py-2 rounded-lg">Stop Bots</button>
+                </div>
+                <p id="warmupStatus" class="text-xs text-center mt-2 text-gray-500"></p>
+            </div>
+
+            <!-- TRIGGER ENGINE -->
+            <div class="bg-[#0f0f13] p-4 rounded-lg border border-gray-700">
+                <h2 class="text-xl font-bold text-pink-400 mb-4">2. Trigger Engine</h2>
+                <p class="text-xs text-gray-400 mb-2">Check for offers and claim them.</p>
+                <textarea id="triggerTokens" rows="3" class="w-full bg-[#1a1a24] border border-gray-700 rounded-lg p-2 text-xs font-mono mb-2" placeholder="Paste tokens here..."></textarea>
+                <button onclick="triggerTrials()" id="triggerBtn" class="neon-btn w-full text-white text-sm font-bold py-2 rounded-lg mb-2">Trigger Nitro</button>
+                <div id="results" class="mt-2 text-xs max-h-40 overflow-y-auto">
+                    <ul id="resultList" class="space-y-1"></ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let masterPass = sessionStorage.getItem('zyruu_pass') || '';
+        if (masterPass) {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('toolScreen').classList.remove('hidden');
+        }
+
+        function login() {
+            if (document.getElementById('masterPassword').value === "ZYRUU2024") { 
+                sessionStorage.setItem('zyruu_pass', "ZYRUU2024");
+                masterPass = "ZYRUU2024";
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('toolScreen').classList.remove('hidden');
+            } else document.getElementById('loginError').classList.remove('hidden');
+        }
+
+        async function startWarmup() {
+            const tokens = document.getElementById('warmupTokens').value.split('\n').map(t=>t.trim()).filter(Boolean);
+            const vc = document.getElementById('voiceId').value.trim();
+            const tc = document.getElementById('textId').value.trim();
+            const status = document.getElementById('warmupStatus');
+            
+            if(!tokens.length) return alert("Enter tokens");
+            status.innerText = "Starting...";
+            
+            const res = await fetch('/api/start-warmup', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'x-zyruu-auth': masterPass },
+                body: JSON.stringify({ tokens, voiceChannelId: vc, textChannelId: tc })
+            });
+            const data = await res.json();
+            status.innerText = data.message;
+        }
+
+        async function stopWarmup() {
+            const res = await fetch('/api/stop-warmup', { method: 'POST', headers: { 'x-zyruu-auth': masterPass } });
+            const data = await res.json();
+            document.getElementById('warmupStatus').innerText = data.message;
+        }
+
+        async function triggerTrials() {
+            const tokens = document.getElementById('triggerTokens').value.split('\n').map(t=>t.trim()).filter(Boolean);
+            const btn = document.getElementById('triggerBtn');
+            const resultList = document.getElementById('resultList');
+            
+            if(!tokens.length) return alert("Enter tokens");
+            btn.disabled = true; btn.innerText = "Processing...";
+            resultList.innerHTML = '';
+
+            tokens.forEach((_, i) => {
+                const li = document.createElement('li');
+                li.id = `t-${i}`; li.className = "text-gray-500";
+                li.innerText = `Token ${i+1}: Waiting...`;
+                resultList.appendChild(li);
+            });
+
+            await Promise.all(tokens.map(async (token, i) => {
+                const li = document.getElementById(`t-${i}`);
+                li.innerText = `Token ${i+1}: Checking...`;
+                try {
+                    const res = await fetch('/api/trigger', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-zyruu-auth': masterPass },
+                        body: JSON.stringify({ token })
+                    });
+                    const data = await res.json();
+                    li.innerHTML = `<span class="text-gray-500">Token ${i+1}:</span> <span class="${data.success?'text-green-500':'text-red-500'}">${data.success?'✅':'❌'} ${data.message}</span>`;
+                } catch { li.innerText = `Token ${i+1}: Server Error`; }
+            }));
+            btn.disabled = false; btn.innerText = "Trigger Nitro";
+        }
+    </script>
+</body>
+</html>
